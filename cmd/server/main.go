@@ -34,7 +34,7 @@ type SyncMap struct {
 }
 
 var notes = &SyncMap{
-	data: make(map[int]*Note),
+	data: make(map[int64]*Note),
 }
 
 func createNoteHandler(writer http.ResponseWriter, request *http.Request) {
