@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -66,7 +68,48 @@ func createNoteHandler(writer http.ResponseWriter, request *http.Request) {
 
 }
 
+func getNoteHandler(writer http.ResponseWriter, request *http.Request) {
+	paramID := chi.URLParam(request, "id")
+	id, err := parseNoteID(paramID)
+	if err != nil {
+		http.Error(writer, "Incorrect ID", http.StatusBadRequest)
+		return
+	}
+
+	note, ok := notes.data[id]
+
+	if !ok {
+		http.Error(writer, "Note not found", http.StatusBadRequest)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(writer).Encode(note); err != nil {
+		http.Error(writer, "Failed to encode note to json", http.StatusInternalServerError)
+		return
+	}
+	writer.WriteHeader(http.StatusFound)
+
+}
+
+func parseNoteID(str string) (int64, error) {
+	id, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+
+}
+
 func main() {
 	router := chi.NewRouter()
 	router.Post(createAddress, createNoteHandler)
+	router.Get(getAddress, getNoteHandler)
+
+	if err := http.ListenAndServe(url+":"+port, router); err != nil {
+		log.Fatal("Unable to start server")
+	}
+
 }
