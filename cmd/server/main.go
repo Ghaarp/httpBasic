@@ -9,14 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-chi/chi"
+	"github.com/fatih/color"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
-	url           = "localhost"
+	url           = "localhost:"
 	port          = "3000"
 	createAddress = "/create"
-	getAddress    = "/get%d"
+	getAddress    = "/get/{id}"
 )
 
 type Note struct {
@@ -69,27 +70,29 @@ func createNoteHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func getNoteHandler(writer http.ResponseWriter, request *http.Request) {
+
 	paramID := chi.URLParam(request, "id")
 	id, err := parseNoteID(paramID)
+
 	if err != nil {
 		http.Error(writer, "Incorrect ID", http.StatusBadRequest)
 		return
 	}
 
+	notes.m.RLock()
+	defer notes.m.RUnlock()
 	note, ok := notes.data[id]
 
 	if !ok {
 		http.Error(writer, "Note not found", http.StatusBadRequest)
 		return
 	}
-
 	writer.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(writer).Encode(note); err != nil {
 		http.Error(writer, "Failed to encode note to json", http.StatusInternalServerError)
 		return
 	}
-	writer.WriteHeader(http.StatusFound)
 
 }
 
@@ -104,11 +107,13 @@ func parseNoteID(str string) (int64, error) {
 }
 
 func main() {
+
+	log.Printf(color.RedString("Server started/n"))
 	router := chi.NewRouter()
 	router.Post(createAddress, createNoteHandler)
 	router.Get(getAddress, getNoteHandler)
 
-	if err := http.ListenAndServe(url+":"+port, router); err != nil {
+	if err := http.ListenAndServe(url+port, router); err != nil {
 		log.Fatal("Unable to start server")
 	}
 
